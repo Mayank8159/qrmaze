@@ -1,5 +1,13 @@
 import "./globals.css";
 
+export const metadata = {
+  title: 'Temple Quiz Run',
+  description: 'Escape the temple by answering questions!',
+  icons: {
+    icon: '/icon.svg',
+  },
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
