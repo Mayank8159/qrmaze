@@ -45,7 +45,7 @@ export default function SetPage({ params }: { params: any }) {
     setIsVerifying(true);
     
     try {
-      const response = await axios.post("http://localhost:3000/api/verify-email", {
+      const response = await axios.post("https://registration-ggsc.onrender.com/api/verify-email", {
         email: email
       });
       
@@ -74,7 +74,7 @@ export default function SetPage({ params }: { params: any }) {
       title: set.title
     };
     try {
-      await axios.post("http://localhost:3000/api/qrmaze/submit-score", payload);
+      await axios.post("https://registration-ggsc.onrender.com/api/qrmaze/submit-score", payload);
       alert(`Idol Secured! ${userData?.full_name}, Score: ${score}/7, Time: ${elapsedTime}s`);
       window.location.href = "/";
     } catch (error: any) {
