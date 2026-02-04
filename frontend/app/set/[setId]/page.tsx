@@ -4,18 +4,29 @@ import { questionSets } from "@/data/questions";
 import QuestionCard from "@/components/QuestionCard";
 import axios from "axios";
 
+interface UserData {
+  id: string;
+  email: string;
+  full_name: string;
+  enrollment_number: string;
+  department: string;
+  year: number;
+  mobile_number?: string;
+}
+
 export default function SetPage({ params }: { params: any }) {
   const unwrappedParams: any = use(params);
   const set = questionSets.find((s) => s.setId === parseInt(unwrappedParams.setId));
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [startTime, setStartTime] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -29,31 +40,52 @@ export default function SetPage({ params }: { params: any }) {
 
   if (!set) return <div className="text-white p-10 text-center font-black">SET NOT FOUND</div>;
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === "temple123") {
-      setIsLoggedIn(true);
-      setStartTime(Date.now());
-    } else {
-      alert("Wrong Incantation!");
+    setIsVerifying(true);
+    
+    try {
+      const response = await axios.post("https://registration-ggsc.onrender.com/api/verify-email", {
+        email: email
+      });
+      
+      if (response.data.success && response.data.exists) {
+        setUserData(response.data.user);
+        setIsLoggedIn(true);
+        setStartTime(Date.now());
+      } else {
+        alert("Email not found in registered users. Please register first!");
+      }
+    } catch (error) {
+      console.error("Email verification failed:", error);
+      alert("Failed to verify email. Please try again.");
+    } finally {
+      setIsVerifying(false);
     }
   };
 
   const handleFinish = async () => {
     setIsSubmitting(true);
     const payload = {
-      name: userName,
+      email: email,
       timeTaken: elapsedTime,
       correctAnswers: score,
       setNumber: set.setId,
       title: set.title
     };
     try {
-      await axios.post("http://localhost:5000/api/quiz-results", payload);
-      alert(`Idol Secured! ${userName}, Score: ${score}/7, Time: ${elapsedTime}s`);
+      await axios.post("https://registration-ggsc.onrender.com/api/qrmaze/submit-score", payload);
+      alert(`Idol Secured! ${userData?.full_name}, Score: ${score}/7, Time: ${elapsedTime}s`);
       window.location.href = "/";
-    } catch (error) {
-      alert("Submission failed!");
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        alert("You have already submitted a score for this set!");
+      } else if (error.response?.status === 404) {
+        alert("Email not found!");
+      } else {
+        alert("Submission failed! Please try again.");
+      }
+      console.error("Submission error:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -63,11 +95,23 @@ export default function SetPage({ params }: { params: any }) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#1a2421] p-4">
         <form onSubmit={handleLogin} className="bg-[#3c413e] p-8 border-4 border-[#ffd700] shadow-[10px_10px_0px_#000] w-full max-w-md">
-          <h2 className="text-[#ffd700] text-3xl font-black italic uppercase mb-6 text-center tracking-tighter">Temple Login</h2>
+          <h2 className="text-[#ffd700] text-3xl font-black italic uppercase mb-6 text-center tracking-tighter">Email Verification</h2>
           <div className="space-y-4">
-            <input required placeholder="RUNNER NAME" className="w-full p-4 bg-[#1a2421] border-2 border-[#5d6361] text-[#ffd700] outline-none focus:border-[#ffd700]" onChange={(e) => setUserName(e.target.value)} />
-            <input required type="password" placeholder="INCANTATION" className="w-full p-4 bg-[#1a2421] border-2 border-[#5d6361] text-[#ffd700] outline-none focus:border-[#ffd700]" onChange={(e) => setPassword(e.target.value)} />
-            <button className="w-full py-4 bg-[#ffd700] text-black font-black uppercase shadow-[4px_4px_0px_#000] active:translate-y-1 active:shadow-none hover:bg-white transition-colors">Start the Run</button>
+            <input 
+              required 
+              type="email"
+              placeholder="ENTER YOUR EMAIL" 
+              className="w-full p-4 bg-[#1a2421] border-2 border-[#5d6361] text-[#ffd700] outline-none focus:border-[#ffd700]" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)} 
+            />
+            <button 
+              type="submit"
+              disabled={isVerifying}
+              className="w-full py-4 bg-[#ffd700] text-black font-black uppercase shadow-[4px_4px_0px_#000] active:translate-y-1 active:shadow-none hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isVerifying ? "Verifying..." : "Start the Run"}
+            </button>
           </div>
         </form>
       </div>
@@ -84,7 +128,7 @@ export default function SetPage({ params }: { params: any }) {
         <div className="flex justify-between items-end mb-4">
           <div className="text-left">
             <p className="text-[#ffd700] text-xs font-black uppercase tracking-widest opacity-70">Current Runner</p>
-            <h2 className="text-xl font-black text-white italic leading-none uppercase">{userName}</h2>
+            <h2 className="text-xl font-black text-white italic leading-none uppercase">{userData?.full_name}</h2>
           </div>
           
           {/* Properly Positioned Timer Widget */}
